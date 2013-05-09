@@ -1,0 +1,134 @@
+#include "huffman.h"
+#include <stddef.h>
+#include <stdlib.h>
+
+struct huff_node {
+    struct huff_node *left, *right;
+    valtype val;
+    double weight;
+    unsigned internal:1;
+};
+
+struct huff_state {
+    // size is the allocated size of queue ; used is the number of slots used
+    // in queue. When used grows to be equal to size, realloc().
+    size_t size, used;
+    // All nodes are stored consecutively in queue, but only the ones between
+    // head and tail are considered "in the queue" ; that is, when head ==
+    // tail, the queue is empty, and when (tail - head == 1), there is one
+    // node in the queue (end condition). The queue is realloc'ed as needed
+    // when new nodes are added, whether leaf nodes or internal.
+    struct huff_node *queue, *head, *tail;
+    unsigned built:1;
+};
+
+int huff_init(struct huff_state **_s)
+{
+    struct huff_state *s = *_s = malloc(sizeof *s);
+    s->size = 64;
+    s->used = 0;
+    s->queue = calloc(s->size, sizeof *s->queue);
+    s->head = s->tail = s->queue;
+
+    return 0;
+}
+
+static int dbl_cmp(const void *_a, const void *_b)
+{
+    const struct huff_node *a = _a,
+                           *b = _b;
+    return a->weight - b->weight;
+}
+
+static void ensure_order(struct huff_state *s)
+{
+    // It would be better to insert in place instead of resorting an
+    // almost-sorted list every time, especially since this is a worst-case
+    // scenario for quicksort.
+    qsort(s->head, s->tail - s->head, sizeof *s->queue, dbl_cmp);
+}
+
+// ensures there is space for at least one more node
+static int ensure_space(struct huff_state *s)
+{
+    if (s->used < s->size)
+        return 0;
+
+    ptrdiff_t h = s->head - s->queue,
+              t = s->tail - s->queue;
+
+    while (s->used >= s->size && s->queue)
+        s->queue = realloc(s->queue, (s->size *= 2) * sizeof *s->queue);
+
+    s->head = &s->queue[h];
+    s->tail = &s->queue[t];
+
+    return !s->queue;
+}
+
+int huff_add(struct huff_state *s, valtype val, double weight)
+{
+    if (s->built || ensure_space(s))
+        return -1;
+
+    s->used++;
+    struct huff_node *q = s->tail++;
+    q->left     = NULL;
+    q->right    = NULL;
+    q->val      = val;
+    q->weight   = weight;
+    q->internal = 0;
+
+    ensure_order(s);
+
+    return 0;
+}
+
+int huff_build(struct huff_state *s)
+{
+    while ((ensure_order(s), s->tail - s->head > 1)) {
+        struct huff_node *a = s->head++,
+                         *b = s->head++;
+
+        if (ensure_space(s))
+            return -1;
+
+        // TODO coalesce nodes to the beginning of queue (reuse space)
+        s->used++;
+        struct huff_node *c = s->tail++;
+        c->left     = a;
+        c->right    = b;
+        c->weight   = a->weight + b->weight;
+        c->internal = 1;
+    }
+
+    s->built = 1;
+
+    return 0;
+}
+
+static int walk(struct huff_node *n, bitstring b, huff_walker *w, void *userdata)
+{
+    if (!n->internal)
+        return w(n->val, b, n->weight, userdata);
+
+    bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
+              r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
+    return walk(n->left , l, w, userdata)
+        || walk(n->right, r, w, userdata);
+}
+
+int huff_walk(struct huff_state *s, huff_walker *w, void *userdata)
+{
+    if (!s->built)
+        return -1;
+
+    bitstring b = { .bits = 0, .len = 0 };
+    return walk(s->head, b, w, userdata);
+}
+
+void huff_destroy(struct huff_state *s)
+{
+    free(s->queue);
+    free(s);
+}
