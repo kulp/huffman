@@ -5,7 +5,7 @@ struct huff_state;
 typedef int valtype;
 
 typedef struct {
-    long long bits;
+    unsigned long long bits;
     unsigned char len;
 } bitstring;
 
