@@ -27,7 +27,7 @@ static int walker(valtype val, bitstring key, double weight, void *userdata)
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     struct huff_state *st;
     huff_init(&st);
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
     huff_build(st);
 
-    struct walk_state state = { 0 };
+    struct walk_state state = { 0, 0 };
 
     if (huff_walk(st, walker, &state))
         fprintf(stderr, "error while walking : did you huff_build() ?\n");
