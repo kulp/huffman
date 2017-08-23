@@ -3,10 +3,9 @@
 #include <stdlib.h>
 
 struct huff_node {
-    struct huff_node *left, *right;
-    valtype val;
+    struct huff_value_node v;
     double weight;
-    unsigned internal:1;
+    struct huff_node *left, *right;
 };
 
 struct huff_state {
@@ -73,11 +72,11 @@ int huff_add(struct huff_state *s, valtype val, double weight)
 
     s->used++;
     struct huff_node *q = s->tail++;
-    q->left     = NULL;
-    q->right    = NULL;
-    q->val      = val;
-    q->weight   = weight;
-    q->internal = 0;
+    q->left       = NULL;
+    q->right      = NULL;
+    q->v.val      = val;
+    q->weight     = weight;
+    q->v.internal = 0;
 
     ensure_order(s);
 
@@ -96,10 +95,10 @@ int huff_build(struct huff_state *s)
         // TODO coalesce nodes to the beginning of queue (reuse space)
         s->used++;
         struct huff_node *c = s->tail++;
-        c->left     = a;
-        c->right    = b;
-        c->weight   = a->weight + b->weight;
-        c->internal = 1;
+        c->left       = a;
+        c->right      = b;
+        c->weight     = a->weight + b->weight;
+        c->v.internal = 1;
     }
 
     s->built = 1;
@@ -109,8 +108,8 @@ int huff_build(struct huff_state *s)
 
 static int walk(struct huff_node *n, bitstring b, huff_walker *w, void *userdata)
 {
-    if (!n->internal)
-        return w(n->val, b, n->weight, userdata);
+    if (!n->v.internal)
+        return w(n->v.val, b, n->weight, userdata);
 
     bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
               r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };

@@ -9,6 +9,11 @@ typedef struct {
     unsigned char len;
 } bitstring;
 
+typedef struct huff_value_node {
+    valtype val;
+    unsigned char internal;
+} huff_value_node;
+
 typedef int huff_walker(valtype val, bitstring key, double weight, void *userdata);
 
 int  huff_init(struct huff_state **s);
