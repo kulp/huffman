@@ -18,8 +18,7 @@ static int walker(valtype val, bitstring key, double weight, void *userdata)
     for (int i = 0; i < key.len; i++)
         str[key.len - i - 1] = ((key.bits >> i) & 1) + '0';
 
-    const char *sign = val < 0 ? "-" : "";
-    printf("%s0x%x = %d'b%s, weight %4.2f\n", sign, abs(val), key.len, str, weight);
+    printf("0x%x = %d'b%s, weight %4.2f\n", val, key.len, str, weight);
 
     w->weights += weight * key.len;
     w->count += weight;

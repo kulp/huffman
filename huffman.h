@@ -2,7 +2,7 @@
 #define HUFFMAN_H_
 
 struct huff_state;
-typedef int valtype;
+typedef unsigned int valtype;
 
 typedef struct {
     unsigned long long bits;
