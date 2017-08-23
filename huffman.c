@@ -24,6 +24,7 @@ struct huff_state {
 int huff_init(struct huff_state **_s)
 {
     struct huff_state *s = *_s = malloc(sizeof *s);
+    s->built = 0;
     s->size = 64;
     s->used = 0;
     s->queue = calloc(s->size, sizeof *s->queue);
