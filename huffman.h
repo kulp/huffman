@@ -14,7 +14,14 @@ typedef struct huff_value_node {
     unsigned char internal;
 } huff_value_node;
 
-typedef int huff_walker(valtype val, bitstring key, double weight, void *userdata);
+enum huff_walker_order {
+    HUFF_LEAF       = (1 << 0),
+    HUFF_PRE_ORDER  = (1 << 1),
+    HUFF_IN_ORDER   = (1 << 2),
+    HUFF_POST_ORDER = (1 << 3),
+};
+
+typedef int huff_walker(valtype val, bitstring key, double weight, int flags, void *userdata);
 
 int  huff_init(struct huff_state **s);
 int  huff_add(struct huff_state *s, valtype val, double weight);

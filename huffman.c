@@ -109,13 +109,27 @@ int huff_build(struct huff_state *s)
 
 static int walk(struct huff_node *n, bitstring b, huff_walker *w, void *userdata)
 {
-    if (!n->v.internal)
-        return w(n->v.val, b, n->weight, userdata);
+    if (!n)
+        return 0;
 
     bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
               r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
-    return walk(n->left , l, w, userdata)
-        || walk(n->right, r, w, userdata);
+
+    // Slight optimization -- huffman trees are full, so each node will have
+    // either 0 or 2 children. Therefore we need to check only one child to
+    // determine if we are a leaf node.
+    int is_leaf = !n->left;
+
+    return 0
+        || ( is_leaf ? 0 : w(n->v.val, b, n->weight, HUFF_PRE_ORDER , userdata))
+        || walk(n->left, l, w, userdata)
+
+        || (!is_leaf ? 0 : w(n->v.val, b, n->weight, HUFF_LEAF      , userdata))
+
+        || ( is_leaf ? 0 : w(n->v.val, b, n->weight, HUFF_IN_ORDER  , userdata))
+        || walk(n->right, r, w, userdata)
+
+        || ( is_leaf ? 0 : w(n->v.val, b, n->weight, HUFF_POST_ORDER, userdata));
 }
 
 int huff_walk(struct huff_state *s, huff_walker *w, void *userdata)

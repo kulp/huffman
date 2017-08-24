@@ -7,11 +7,14 @@ struct walk_state {
     double count;
 };
 
-static int walker(valtype val, bitstring key, double weight, void *userdata)
+static int walker(valtype val, bitstring key, double weight, int flags, void *userdata)
 {
     struct walk_state *w = userdata;
 
     char str[65] = "0";
+    if ((flags & HUFF_LEAF) == 0)
+        return 0;
+
     if (key.len >= sizeof str)
         return -1;
 
