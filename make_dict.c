@@ -44,12 +44,14 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         fwrite(arr, sizeof arr, 1, self->stream); // emit valtype as a character
     }
 
-    // update parent nodes
-    long offset = self->stream_pos - self->parent->stream_pos;
-    unsigned char small = offset;
-    assert(("no loss of precision", small == offset));
-    fseek(self->stream, self->parent->stream_pos, SEEK_SET);
-    fwrite(&small, 1, 1, self->stream);
+    if (flags & HUFF_POST_ORDER || flags & HUFF_LEAF) {
+        // update parent nodes
+        long offset = self->stream_pos - self->parent->stream_pos;
+        unsigned char small = offset;
+        assert(("no loss of precision", small == offset));
+        fseek(self->stream, self->parent->stream_pos, SEEK_SET);
+        fwrite(&small, 1, 1, self->stream);
+    }
 
     if (flags & HUFF_POST_ORDER) {
         // pop state from stack
