@@ -93,6 +93,12 @@ int main()
     struct walk_state *sp = &state;
     struct walk_state **spp = &sp;
 
+    // Test seeking so we know if we cannot succeed
+    if (fseek(sp->stream, 0, SEEK_SET) == -1) {
+        perror("Error while seeking");
+        return EXIT_FAILURE;
+    }
+
     if (huff_walk(st, walker, spp))
         fprintf(stderr, "error while walking : did you huff_build() ?\n");
 
