@@ -8,6 +8,7 @@
 struct walk_state {
     FILE *stream;
     long stream_pos;
+    int rightness;
     struct walk_state *parent;
 };
 
@@ -29,18 +30,20 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
 
         // push new state onto stack, copying old state
         {
-            struct walk_state *st = malloc(sizeof *st);
-            memcpy(st, self, sizeof *st);
+            struct walk_state *st = calloc(1, sizeof *st);
+            st->stream = self->stream;
+            st->stream_pos = -1;
+            st->rightness = 0;
             st->parent = self;
-            *selfp = st;
-            // self is not updated
+            self = *selfp = st;
         }
     } else if (flags & HUFF_IN_ORDER) {
         // update state to reflect that the next node is the right node
-        self->stream_pos++;
+        self->rightness = 1;
     } else if (flags & HUFF_LEAF) {
         char arr[2] = { val, 0 };
         fseek(self->stream, 0, SEEK_END);
+        self->stream_pos = ftell(self->stream);
         fwrite(arr, sizeof arr, 1, self->stream); // emit valtype as a character
     }
 
@@ -49,7 +52,7 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         long offset = self->stream_pos - self->parent->stream_pos;
         unsigned char small = offset;
         assert(("no loss of precision", small == offset));
-        fseek(self->stream, self->parent->stream_pos, SEEK_SET);
+        fseek(self->stream, self->parent->stream_pos + self->rightness, SEEK_SET);
         fwrite(&small, 1, 1, self->stream);
     }
 
@@ -86,9 +89,11 @@ int main()
     struct walk_state state = {
         .stream     = stdout,
         .stream_pos = 0,
+        .rightness  = 0,
         .parent     = &(struct walk_state){
             // parent node is not emitted
             .stream_pos = 0,
+            .rightness  = 0,
         },
     };
     struct walk_state *sp = &state;
