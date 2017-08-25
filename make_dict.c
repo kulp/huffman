@@ -15,46 +15,51 @@ struct walk_state {
 
 static int walker(valtype val, bitstring key, double weight, int flags, void *userdata)
 {
-    struct walk_state **wp = userdata;
-    struct walk_state *w = *wp;
-    (void)val;
+    struct walk_state **selfp = userdata;
+    struct walk_state *self = *selfp;
     (void)weight;
 
-    if (w->len + key.len >= CHAR_BIT * sizeof w->cache)
+    if (self->len + key.len >= CHAR_BIT * sizeof self->cache)
         return 1; // too big
 
     if (flags & HUFF_PRE_ORDER) {
-        char arr[2] = { 0, 0 };
-        // push new state onto stack
-        struct walk_state *st = malloc(sizeof *st);
-        memcpy(st, w, sizeof *st);
-        st->parent = w;
-        *wp = st;
+        // add new blank internal node to end of stream
+        {
+            char arr[2] = { 0, 0 };
+            fseek(self->stream, 0, SEEK_END);
+            self->stream_pos = ftell(self->stream);
+            fwrite(arr, sizeof arr, 1, self->stream);
+        }
 
-        fseek(w->stream, w->stream_pos, SEEK_SET);
-        st->stream_pos = ftell(st->stream);
-        fwrite(arr, sizeof arr, 1, w->stream);
-        // TODO emit internal node
+        // push new state onto stack, copying old state
+        {
+            struct walk_state *st = malloc(sizeof *st);
+            memcpy(st, self, sizeof *st);
+            st->parent = self;
+            *selfp = st;
+            // self is not updated
+        }
     } else if (flags & HUFF_IN_ORDER) {
         // update state to reflect that the next node is the right node
-        w->stream_pos++;
-    } else if (flags & HUFF_POST_ORDER) {
-        // pop state from stack
-        struct walk_state *st = w->parent;
-        free(w);
-        *wp = st;
+        self->stream_pos++;
     } else if (flags & HUFF_LEAF) {
         char arr[2] = { val, 0 };
-        fseek(w->stream, 0, SEEK_END);
-        fwrite(arr, sizeof arr, 1, w->stream); // emit valtype as a character
+        fseek(self->stream, 0, SEEK_END);
+        fwrite(arr, sizeof arr, 1, self->stream); // emit valtype as a character
     }
 
     // update parent nodes
-    long offset = w->stream_pos - w->parent->stream_pos;
+    long offset = self->stream_pos - self->parent->stream_pos;
     unsigned char small = offset;
     assert(("no loss of precision", small == offset));
-    fseek(w->stream, w->stream_pos, SEEK_SET);
-    fwrite(&small, 1, 1, w->stream);
+    fseek(self->stream, self->parent->stream_pos, SEEK_SET);
+    fwrite(&small, 1, 1, self->stream);
+
+    if (flags & HUFF_POST_ORDER) {
+        // pop state from stack
+        *selfp = self->parent;
+        free(self);
+    }
 
     return 0;
 }
