@@ -1,7 +1,8 @@
 #include "huffman.h"
+#include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <string.h>
 
 struct walk_state {
@@ -23,15 +24,20 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         return 1; // too big
 
     if (flags & HUFF_PRE_ORDER) {
+        char arr[2] = { 0, 0 };
         // push new state onto stack
         struct walk_state *st = malloc(sizeof *st);
         memcpy(st, w, sizeof *st);
         st->parent = w;
         *wp = st;
 
-        fseek(st->stream, w->stream_pos, SEEK_SET);
+        fseek(w->stream, w->stream_pos, SEEK_SET);
         st->stream_pos = ftell(st->stream);
+        fwrite(arr, sizeof arr, 1, w->stream);
         // TODO emit internal node
+    } else if (flags & HUFF_IN_ORDER) {
+        // update state to reflect that the next node is the right node
+        w->stream_pos++;
     } else if (flags & HUFF_POST_ORDER) {
         // pop state from stack
         struct walk_state *st = w->parent;
@@ -39,10 +45,16 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         *wp = st;
     } else if (flags & HUFF_LEAF) {
         char arr[2] = { val, 0 };
+        fseek(w->stream, 0, SEEK_END);
         fwrite(arr, sizeof arr, 1, w->stream); // emit valtype as a character
     }
 
-    // TODO update parent nodes
+    // update parent nodes
+    long offset = w->stream_pos - w->parent->stream_pos;
+    unsigned char small = offset;
+    assert(("no loss of precision", small == offset));
+    fseek(w->stream, w->stream_pos, SEEK_SET);
+    fwrite(&small, 1, 1, w->stream);
 
     return 0;
 }
@@ -73,7 +85,10 @@ int main()
         .stream_pos = 0,
         .cache      = 0ll,
         .len        = 0l,
-        .parent     = NULL
+        .parent     = &(struct walk_state){
+            // parent node is not emitted
+            .stream_pos = 0,
+        },
     };
     struct walk_state *sp = &state;
     struct walk_state **spp = &sp;
