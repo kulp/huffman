@@ -8,8 +8,6 @@
 struct walk_state {
     FILE *stream;
     long stream_pos;
-    unsigned long long cache;
-    unsigned char len;
     struct walk_state *parent;
 };
 
@@ -17,10 +15,8 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
 {
     struct walk_state **selfp = userdata;
     struct walk_state *self = *selfp;
+    (void)key;
     (void)weight;
-
-    if (self->len + key.len >= CHAR_BIT * sizeof self->cache)
-        return 1; // too big
 
     if (flags & HUFF_PRE_ORDER) {
         // add new blank internal node to end of stream
@@ -88,8 +84,6 @@ int main()
     struct walk_state state = {
         .stream     = stdout,
         .stream_pos = 0,
-        .cache      = 0ll,
-        .len        = 0l,
         .parent     = &(struct walk_state){
             // parent node is not emitted
             .stream_pos = 0,
@@ -106,10 +100,6 @@ int main()
 
     if (huff_walk(st, walker, spp))
         fprintf(stderr, "error while walking : did you huff_build() ?\n");
-
-    if (sp->len > 0) {
-        fprintf(sp->stream, "%c", (char)(sp->cache & 0xff));
-    }
 
     huff_destroy(st);
 
