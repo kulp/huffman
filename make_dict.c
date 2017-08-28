@@ -12,6 +12,24 @@ struct walk_state {
     struct walk_state *parent;
 };
 
+static struct walk_state *create_child(struct walk_state *parent)
+{
+    struct walk_state *st = calloc(1, sizeof *st);
+    st->stream = parent->stream;
+    st->stream_pos = -1;
+    st->rightness = 0;
+    st->parent = parent;
+
+    return st;
+}
+
+static size_t write_node(struct walk_state *self, char arr[2])
+{
+    fseek(self->stream, 0, SEEK_END);
+    self->stream_pos = ftell(self->stream);
+    return fwrite(arr, 2, 1, self->stream);
+}
+
 static int walker(valtype val, bitstring key, double weight, int flags, void *userdata)
 {
     struct walk_state **selfp = userdata;
@@ -20,31 +38,19 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
     (void)weight;
 
     if (flags & HUFF_PRE_ORDER) {
-        // add new blank internal node to end of stream
-        {
-            char arr[2] = { 0, 0 };
-            fseek(self->stream, 0, SEEK_END);
-            self->stream_pos = ftell(self->stream);
-            fwrite(arr, sizeof arr, 1, self->stream);
-        }
-
         // push new state onto stack, copying old state
-        {
-            struct walk_state *st = calloc(1, sizeof *st);
-            st->stream = self->stream;
-            st->stream_pos = -1;
-            st->rightness = 0;
-            st->parent = self;
-            self = *selfp = st;
-        }
+        self = *selfp = create_child(self);
+
+        // add new blank internal node to end of stream
+        char arr[2] = { 0, 0 };
+        write_node(self, arr);
+
     } else if (flags & HUFF_IN_ORDER) {
         // update state to reflect that the next node is the right node
         self->rightness = 1;
     } else if (flags & HUFF_LEAF) {
         char arr[2] = { val, 0 };
-        fseek(self->stream, 0, SEEK_END);
-        self->stream_pos = ftell(self->stream);
-        fwrite(arr, sizeof arr, 1, self->stream); // emit valtype as a character
+        write_node(self, arr);
     }
 
     if (flags & HUFF_POST_ORDER || flags & HUFF_LEAF) {
