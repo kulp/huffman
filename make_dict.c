@@ -94,11 +94,13 @@ int main()
 
     struct walk_state state = {
         .stream     = stdout,
-        .stream_pos = 0,
+        .stream_pos = ftell(state.stream),
         .rightness  = 0,
         .parent     = &(struct walk_state){
             // parent node is not emitted
-            .stream_pos = 0,
+            // TODO why do we need this node at all ?
+            .stream     = state.stream,
+            .stream_pos = ftell(state.stream),
             .rightness  = 0,
         },
     };
