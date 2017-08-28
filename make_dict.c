@@ -38,7 +38,7 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
     (void)weight;
 
     if (flags & HUFF_PRE_ORDER) {
-        // push new state onto stack, copying old state
+        // push new state for left child
         self = *selfp = create_child(self);
 
         // add new blank internal node to end of stream
@@ -46,13 +46,28 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         write_node(self, arr);
 
     } else if (flags & HUFF_IN_ORDER) {
+        // pop state for left child
+        *selfp = self->parent;
+        free(self);
+        self = *selfp;
+
+        // push new state for right child
+        self = *selfp = create_child(self);
+
         // update state to reflect that the next node is the right node
         self->rightness = 1;
     } else if (flags & HUFF_LEAF) {
         char arr[2] = { val, 0 };
         write_node(self, arr);
+    } else if (flags & HUFF_POST_ORDER) {
+        // pop state from right child
+        *selfp = self->parent;
+        free(self);
+        self = *selfp;
     }
 
+    // fix up pointer in parent node
+    // XXX post order and leaf wrongly have the same state for some reason
     if (flags & HUFF_POST_ORDER || flags & HUFF_LEAF) {
         // update parent nodes
         long offset = self->stream_pos - self->parent->stream_pos;
@@ -60,12 +75,6 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
         assert(("no loss of precision", small == offset));
         fseek(self->stream, self->parent->stream_pos + self->rightness, SEEK_SET);
         fwrite(&small, 1, 1, self->stream);
-    }
-
-    if (flags & HUFF_POST_ORDER) {
-        // pop state from stack
-        *selfp = self->parent;
-        free(self);
     }
 
     return 0;
