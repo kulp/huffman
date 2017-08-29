@@ -1,4 +1,5 @@
 CFLAGS += -g
+CFLAGS += -std=c99
 CFLAGS += -Wall -Wextra -pedantic-errors
 
 # ignore unused expressions in assertions (used for labeling)
