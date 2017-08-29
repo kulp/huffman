@@ -30,6 +30,12 @@ static size_t write_node(struct walk_state *self, char arr[2])
     return fwrite(arr, 2, 1, self->stream);
 }
 
+// Every time `walker` is entered, `userdata` will contain a double pointer to
+// a `struct walk_state` that describes the state for the node being walked.
+// `walker` is responsible for pushing and popping states in the linked-list
+// stack in order to keep this true for the next node, and `walker` can do
+// this because it knows whether or not it is visiting an internal node based
+// on the value in `flags` (HUFF_{PRE,IN,POST}_ORDER or HUFF_LEAF).
 static int walker(valtype val, bitstring key, double weight, int flags, void *userdata)
 {
     struct walk_state **selfp = userdata;
@@ -38,13 +44,12 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
     (void)weight;
 
     if (flags & HUFF_PRE_ORDER) {
-        // push new state for left child
-        self = *selfp = create_child(self);
-
         // add new blank internal node to end of stream
         char arr[2] = { 0, 0 };
         write_node(self, arr);
 
+        // push new state for left child
+        self = *selfp = create_child(self);
     } else if (flags & HUFF_IN_ORDER) {
         // pop state for left child
         *selfp = self->parent;
@@ -56,25 +61,27 @@ static int walker(valtype val, bitstring key, double weight, int flags, void *us
 
         // update state to reflect that the next node is the right node
         self->rightness = 1;
-    } else if (flags & HUFF_LEAF) {
-        char arr[2] = { val, 0 };
-        write_node(self, arr);
-    } else if (flags & HUFF_POST_ORDER) {
-        // pop state from right child
-        *selfp = self->parent;
-        free(self);
-        self = *selfp;
-    }
+    } else {
+        // we just finished either an internal node (HUFF_POST_ORDER) or a
+        // leaf node (HUFF_LEAF), so we can fix up the pointer in our parent
+        if (flags & HUFF_LEAF) {
+            char arr[2] = { val, 0 };
+            write_node(self, arr);
+        } else if (flags & HUFF_POST_ORDER) {
+            // pop state from right child
+            *selfp = self->parent;
+            free(self);
+            self = *selfp;
+        }
 
-    // fix up pointer in parent node
-    // XXX post order and leaf wrongly have the same state for some reason
-    if (flags & HUFF_POST_ORDER || flags & HUFF_LEAF) {
-        // update parent nodes
+        // update parent node
         long offset = self->stream_pos - self->parent->stream_pos;
         unsigned char small = offset;
         assert(("no loss of precision", small == offset));
-        fseek(self->stream, self->parent->stream_pos + self->rightness, SEEK_SET);
-        fwrite(&small, 1, 1, self->stream);
+        if (self->parent->stream_pos >= 0) { // check for sentinel
+            fseek(self->stream, self->parent->stream_pos + self->rightness, SEEK_SET);
+            fwrite(&small, 1, 1, self->stream);
+        }
     }
 
     return 0;
@@ -109,7 +116,7 @@ int main()
             // parent node is not emitted
             // TODO why do we need this node at all ?
             .stream     = state.stream,
-            .stream_pos = ftell(state.stream),
+            .stream_pos = -1, // intentionally invalid, sentinel value
             .rightness  = 0,
         },
     };
