@@ -1,6 +1,7 @@
 #include "huffman.h"
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct huff_node {
     struct huff_value_node v;
@@ -57,9 +58,21 @@ static int ensure_space(struct huff_state *s)
     ptrdiff_t h = s->head - s->queue,
               t = s->tail - s->queue;
 
-    while (s->used >= s->size && s->queue)
-        s->queue = realloc(s->queue, (s->size *= 2) * sizeof *s->queue);
+    // Assume two's-complement integers and round up to a nice round figure
+    s->size = -(-s->used & ~0xf) * 2;
+    struct huff_node *re = calloc(s->size, sizeof *s->queue);
+    memcpy(re, s->queue, s->used * sizeof *s->queue);
 
+    // Update pointers inside realloced memory. They all pointed inside of
+    // s->queue's allocated memory, so we can use their old offsets to
+    // point into their new location.
+    for (struct huff_node *n = re; n != &re[t]; n++) {
+        n->left  = n->left  ? &re[n->left  - s->queue] : NULL;
+        n->right = n->right ? &re[n->right - s->queue] : NULL;
+    }
+
+    free(s->queue);
+    s->queue = re;
     s->head = &s->queue[h];
     s->tail = &s->queue[t];
 
@@ -87,11 +100,11 @@ int huff_add(struct huff_state *s, valtype val, double weight)
 int huff_build(struct huff_state *s)
 {
     while ((ensure_order(s), s->tail - s->head > 1)) {
-        struct huff_node *a = s->head++,
-                         *b = s->head++;
-
         if (ensure_space(s))
             return -1;
+
+        struct huff_node *a = s->head++,
+                         *b = s->head++;
 
         // TODO coalesce nodes to the beginning of queue (reuse space)
         s->used++;
