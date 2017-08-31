@@ -29,7 +29,7 @@ static int process(long offset, FILE *in, FILE *out, bitstring b)
         process(offset + arr[1], in, out, r);
     } else {
         // leaf node
-        fprintf(out, "%#hhx = ", arr[0]);
+        fprintf(out, "0x%hhX = ", arr[0]);
         print_bits(out, b);
         fputc('\n', out);
     }
