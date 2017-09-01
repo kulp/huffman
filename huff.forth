@@ -40,3 +40,6 @@
     then
   ;
 
+: unmake-dict ( fid -- ) \ slurps fid
+  slurp-fid drop 0 0 rot emit-node ;
+
