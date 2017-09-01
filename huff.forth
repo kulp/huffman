@@ -3,11 +3,12 @@
 : emit-num ( n -- ) \ emits a number with no space following
   s>d 0 d.r ;
 
+: emit-bit-at ( n1 n2 -- ) \ emits bit from n1 at position n2
+  1 swap lshift over and 0= invert negate emit-num ;
+
 : verilog-num ( number len -- ) \ prints number in Verilog fmt
   dup emit-num ." 'b" \ emit bit len, radix
-  1- 0 swap do
-    1 i lshift over and 0= invert negate emit-num
-  -1 +loop drop ;
+  1- 0 swap do i emit-bit-at -1 +loop drop ;
 
 : print-hex-num ( val -- )
   base @  hex swap ." 0x" .  base ! ;
