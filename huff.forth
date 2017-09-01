@@ -10,37 +10,26 @@
   -1 +loop drop ;
 
 : print-hex-num ( val -- )
-  base @  hex swap        \ save base, switch to hex
-  ." 0x"
-  .
-  base ! ;                \ restore base
+  base @  hex swap ." 0x" .  base ! ;
 
 : print-tree-entry ( val len key -- )
-  print-hex-num
-  ." =" space
-  verilog-num ;
+  print-hex-num ." =" space verilog-num ;
 
 : 3dup ( x1 x2 x3 -- x1 x2 x3 x1 x2 x3 )
   dup 2>r 2dup r> rot rot r> ;
 
+: set-up-child ( val2 len2 addr2 inc bit -- val2 len2 addr2 )
+  >r + rot  1 lshift r> or rot  1+ rot ;
+
 : emit-node ( val len addr -- )
-  dup c@ over 1+ c@     ( val len addr x1 x2 )
-  dup 0=                ( val len addr x1 x2 f )
-    if
-      2drop c@ print-tree-entry cr
-    else
-      2>r \ save x2 x1
-      3dup \ duplicate state
-      r> + rot \ addr + x1
-      1 lshift 1 or rot \ (val << 1) | 1
-      1+ rot \ len + 1
-      recurse
-      r> + rot \ addr + x2
-      1 lshift rot \ val << 1
-      1+ rot \ len + 1
-      recurse
-    then
-  ;
+  dup c@ over 1+ c@ \ get two bytes
+  dup 0= if
+    2drop c@ print-tree-entry cr
+  else
+    2>r 3dup
+    r> 1 set-up-child recurse
+    r> 0 set-up-child recurse
+  then ;
 
 : unmake-dict ( fid -- ) \ slurps fid
   slurp-fid drop 0 0 rot emit-node ;
