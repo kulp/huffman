@@ -17,7 +17,7 @@
   print-hex-num ." =" space verilog-num ;
 
 : 3dup ( x1 x2 x3 -- x1 x2 x3 x1 x2 x3 )
-  dup 2>r 2dup r> rot rot r> ;
+  dup 2over rot ;
 
 : set-up-child ( val2 len2 addr2 inc bit -- val2 len2 addr2 )
   >r + rot  1 lshift r> or rot  1+ rot ;
