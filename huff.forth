@@ -14,24 +14,24 @@
   base @  hex swap ." 0x" .  base ! ;
 
 : print-tree-entry ( val len key -- )
-  print-hex-num ." =" space verilog-num ;
+  print-hex-num ." =" space verilog-num cr ;
 
-: 3dup ( x1 x2 x3 -- x1 x2 x3 x1 x2 x3 )
-  dup 2over rot ;
+: 4dup ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 x3 x4 )
+  2over 2over ;
 
 : set-up-child ( val2 len2 addr2 inc bit -- val2 len2 addr2 )
   >r + rot  1 lshift r> or rot  1+ rot ;
 
-: emit-node ( val len addr -- )
+: proc-node ( xt val len addr -- )
   dup c@ over 1+ c@ \ get two bytes
   dup 0= if
-    2drop c@ print-tree-entry cr
+    2drop c@ 3 pick execute drop
   else
-    2>r 3dup
+    2>r 4dup
     r> 1 set-up-child recurse
     r> 0 set-up-child recurse
   then ;
 
 : unmake-dict ( fid -- ) \ slurps fid
-  slurp-fid drop 0 0 rot emit-node ;
+  slurp-fid drop ['] print-tree-entry swap 0 0 rot proc-node ;
 
