@@ -16,10 +16,10 @@
 : print-tree-entry ( val len key -- )
   print-hex-num ." =" space verilog-num cr ;
 
-: 4dup ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 x3 x4 )
+: 4dup ( x1 .. x4 -- x1 .. x4 x1 .. x4 )
   2over 2over ;
 
-: set-up-child ( val2 len2 addr2 inc bit -- val2 len2 addr2 )
+: set-up-child ( val1 len1 addr1 inc bit -- val2 len2 addr2 )
   >r + rot  1 lshift r> or rot  1+ rot ;
 
 : proc-node ( xt val len addr -- )
