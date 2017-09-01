@@ -4,19 +4,21 @@
   s>d 0 d.r ;
 
 : verilog-num ( number len -- ) \ prints number in Verilog fmt
-  dup emit-num [char] ' emit [char] b emit \ emit bit len, radix
+  dup emit-num ." 'b" \ emit bit len, radix
   1- 0 swap do
     1 i lshift over and 0= invert negate emit-num
   -1 +loop drop ;
 
-: print-tree-entry ( val len key -- )
+: print-hex-num ( val -- )
   base @  hex swap        \ save base, switch to hex
-  [char] 0 emit
-  [char] x emit
+  ." 0x"
   .
-  [char] = emit
-  base !                  \ restore base
-  space  verilog-num ;
+  base ! ;                \ restore base
+
+: print-tree-entry ( val len key -- )
+  print-hex-num
+  ." =" space
+  verilog-num ;
 
 : 3dup ( x1 x2 x3 -- x1 x2 x3 x1 x2 x3 )
   dup 2>r 2dup r> rot rot r> ;
