@@ -1,6 +1,8 @@
 #ifndef HUFFMAN_H_
 #define HUFFMAN_H_
 
+#include <stdio.h>
+
 struct huff_state;
 typedef unsigned int valtype;
 
@@ -21,6 +23,8 @@ enum huff_walker_order {
     HUFF_POST_ORDER = (1 << 3),
 };
 
+typedef int huff_dict_cb(char, bitstring, void *);
+
 typedef int huff_walker(valtype val, bitstring key, double weight, int flags, void *userdata);
 
 int  huff_init(struct huff_state **s);
@@ -28,5 +32,7 @@ int  huff_add(struct huff_state *s, valtype val, double weight);
 int  huff_build(struct huff_state *s);
 int  huff_walk(struct huff_state *s, huff_walker *w, void *userdata);
 void huff_destroy(struct huff_state *s);
+
+int  huff_load_dict(FILE *in, huff_dict_cb act, void *data);
 
 #endif

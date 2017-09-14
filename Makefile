@@ -8,7 +8,7 @@ CPPFLAGS += -Wno-unused
 TARGETS += make_dict unmake_dict test_huffman
 all: $(TARGETS)
 
-make_dict test_huffman: huffman.o
+make_dict test_huffman unmake_dict: huffman.o
 
 clean:
 	$(RM) *.o $(TARGETS)
