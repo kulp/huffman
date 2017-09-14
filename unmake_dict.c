@@ -14,6 +14,13 @@ static int print_bits(FILE *out, bitstring bits)
     return fprintf(out, "%d'b%s", bits.len, str);
 }
 
+static void print_node(FILE *out, char byte, bitstring bits)
+{
+    fprintf(out, "0x%hhX = ", byte);
+    print_bits(out, bits);
+    fputc('\n', out);
+}
+
 static int process(long offset, FILE *in, FILE *out, bitstring b)
 {
     unsigned char arr[2];
@@ -29,9 +36,7 @@ static int process(long offset, FILE *in, FILE *out, bitstring b)
         process(offset + arr[1], in, out, r);
     } else {
         // leaf node
-        fprintf(out, "0x%hhX = ", arr[0]);
-        print_bits(out, b);
-        fputc('\n', out);
+        print_node(out, arr[0], b);
     }
 
     return 0;
