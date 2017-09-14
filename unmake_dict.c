@@ -1,7 +1,7 @@
 #include "huffman.h"
 #include <stdio.h>
 
-typedef int action(char, bitstring, void *);
+typedef int huff_dict_cb(char, bitstring, void *);
 
 static int print_bits(FILE *out, bitstring bits)
 {
@@ -25,7 +25,7 @@ static int print_node(char byte, bitstring bits, FILE *out)
     return 0;
 }
 
-static int process(long offset, FILE *in, bitstring b, action act, void *data)
+static int process_chunk_(long offset, FILE *in, bitstring b, huff_dict_cb act, void *data)
 {
     unsigned char arr[2];
     fseek(in, offset, SEEK_SET);
@@ -36,8 +36,8 @@ static int process(long offset, FILE *in, bitstring b, action act, void *data)
         bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
                   r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
 
-        process(offset + arr[0], in, l, act, data);
-        process(offset + arr[1], in, r, act, data);
+        process_chunk_(offset + arr[0], in, l, act, data);
+        process_chunk_(offset + arr[1], in, r, act, data);
     } else {
         // leaf node
         act(arr[0], b, data);
@@ -46,13 +46,15 @@ static int process(long offset, FILE *in, bitstring b, action act, void *data)
     return 0;
 }
 
-int main()
+int huff_load_dict(FILE *in, huff_dict_cb act, void *data)
 {
-    FILE *in  = stdin;
-    FILE *out = stdout;
-
     bitstring bits = { .len = 0 };
 
-    process(ftell(in), in, bits, (action*)print_node, out);
+    return process_chunk_(ftell(in), in, bits, act, data);
+}
+
+int main()
+{
+    return huff_load_dict(stdin, (huff_dict_cb*)print_node, stdout);
 }
 
