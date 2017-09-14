@@ -23,7 +23,7 @@ enum huff_walker_order {
     HUFF_POST_ORDER = (1 << 3),
 };
 
-typedef int huff_dict_cb(char, bitstring, void *);
+typedef int huff_dict_cb(char, bitstring, enum huff_walker_order, void *);
 
 typedef int huff_walker(valtype val, bitstring key, double weight, int flags, void *userdata);
 

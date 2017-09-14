@@ -171,11 +171,14 @@ static int process_chunk_(long offset, FILE *in, bitstring b, huff_dict_cb act, 
         bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
                   r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
 
+        act(arr[0], b, HUFF_PRE_ORDER, data);
         process_chunk_(offset + arr[0], in, l, act, data);
+        act(arr[0], b, HUFF_IN_ORDER, data);
         process_chunk_(offset + arr[1], in, r, act, data);
+        act(arr[0], b, HUFF_POST_ORDER, data);
     } else {
         // leaf node
-        act(arr[0], b, data);
+        act(arr[0], b, HUFF_LEAF, data);
     }
 
     return 0;

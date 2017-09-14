@@ -14,8 +14,12 @@ static int print_bits(FILE *out, bitstring bits)
     return fprintf(out, "%d'b%s", bits.len, str);
 }
 
-static int print_node(char byte, bitstring bits, FILE *out)
+static int print_node(char byte, bitstring bits, enum huff_walker_order order, FILE *out)
 {
+    if (order != HUFF_LEAF) {
+        return 0;
+    }
+
     fprintf(out, "0x%hhX = ", byte);
     print_bits(out, bits);
     fputc('\n', out);

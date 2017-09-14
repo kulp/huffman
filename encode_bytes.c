@@ -6,8 +6,12 @@
 
 #define CHAR_MASK ((1ul << CHAR_BIT) - 1)
 
-static int collect_nodes(char byte, bitstring bits, void *data)
+static int collect_nodes(char byte, bitstring bits, enum huff_walker_order order, void *data)
 {
+    if (order != HUFF_LEAF) {
+        return 0;
+    }
+
     bitstring *table = data;
     table[(unsigned char)byte] = bits;
     return 0;
