@@ -20,6 +20,11 @@ struct emit_state {
 
 static int emit_bitstring(struct emit_state *state, bitstring b, FILE *out)
 {
+    if (b.len == 0) {
+        // We got an invalid bitstring -- we don't know how to encode
+        return 1;
+    }
+
     if (state->count > 0) {
         // TODO this code is convenient but assumes bitstring does not overflow
         b.len += state->count;
@@ -61,7 +66,10 @@ int main(int argc, char *argv[])
     while (!feof(data) && !ferror(data)) {
         int ch = fgetc(data);
         if (ch != EOF) {
-            emit_bitstring(&state, table[(unsigned char)ch], out);
+            if (emit_bitstring(&state, table[(unsigned char)ch], out)) {
+                fprintf(stderr, "Read byte %#hhx not in dictionary\n", (unsigned char)ch);
+                return EXIT_FAILURE;
+            }
         }
     }
 
