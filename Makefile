@@ -5,7 +5,7 @@ CFLAGS += -Wall -Wextra -pedantic-errors
 # ignore unused expressions in assertions (used for labeling)
 CPPFLAGS += -Wno-unused
 
-TARGETS += make_dict unmake_dict test_huffman encode_bytes
+TARGETS += make_dict unmake_dict test_huffman encode_bytes decode_bytes
 all: $(TARGETS)
 
 $(TARGETS): huffman.o
