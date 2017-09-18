@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 struct dict_node {
-    struct dict_node *children[2];
     struct dict_node *parent;
+    struct dict_node *children[2];
     char val;
 };
 
@@ -20,50 +20,30 @@ static int build_dict(char byte, bitstring bits, enum huff_walker_order order, v
     struct dict_node *self;
     (void)bits;
 
+    if (order == HUFF_PRE_ORDER || order == HUFF_LEAF) {
+        // First visit to a node, so allocate
+        *state->curr = calloc(1, sizeof **state->curr);
+    }
+
+    self = *state->curr;
+    self->parent = state->prev;
+    state->prev = self;
+
     switch (order) {
-        case HUFF_PRE_ORDER:
-            // We just entered an internal node for the first time.
-            // Allocate space for a new node.
-            self = *state->curr = malloc(sizeof **state->curr);
-            // Point parent to the most recently-visited node.
-            self->parent = state->prev;
-            // self is now the most recently-visited node.
-            state->prev = self;
-            // The next node to visit will be the left child.
-            state->curr = &self->children[0];
-            break;
-        case HUFF_LEAF:
-            // We just entered a leaf node for the only time.
-            // Allocate space for a new node.
-            self = *state->curr = malloc(sizeof **state->curr);
-            // Point parent to the most recently-visited node.
-            self->parent = state->prev;
-            // Update value slot.
-            self->val = byte;
-            break;
-        case HUFF_IN_ORDER:
-            // We just entered an internal node for the second time.
-            // Get just-exited child.
-            self = *state->curr;
-            // Get parent of just-exited child (our old self).
-            self = *state->curr = self->parent;
-            // self is now the most recently-visited node.
-            state->prev = self;
-            // The next node to visit will be the right child.
-            state->curr = &self->children[1];
-            break;
-        case HUFF_POST_ORDER:
-            // We just entered an internal node for the third and last time.
-            // Get just-exited child.
-            self = *state->curr;
-            // Get parent of just-exited child (our old self).
-            self = *state->curr = self->parent;
-            // Parent is now the most recently-visited node.
-            state->prev = self->parent;
-            break;
-        default:
-            // TODO handle error condition
-            break;
+        case HUFF_PRE_ORDER:    state->curr = &self->children[0];   break;
+        case HUFF_IN_ORDER:     state->curr = &self->children[1];   break;
+        case HUFF_LEAF:         self->val = byte;                   break;
+        default:                /* no operation */                  break;
+    }
+
+    if (order == HUFF_POST_ORDER || order == HUFF_LEAF) {
+        // Last visit to a node, so pop
+        if (self->parent) {
+            // root does not have a parent, so this would crash
+            // TODO somehow obviate the check for NULL
+            state->prev = self->parent->parent;
+        }
+        state->curr = &self->parent; // pop self
     }
 
     return 0;
