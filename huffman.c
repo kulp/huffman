@@ -125,8 +125,8 @@ static int walk(struct huff_node *n, bitstring b, huff_walker *w, void *userdata
     if (!n)
         return 0;
 
-    bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
-              r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
+    bitstring l = { .bits = b.bits | (0ull << b.len), .len = b.len + 1 },
+              r = { .bits = b.bits | (1ull << b.len), .len = b.len + 1 };
 
     // Slight optimization -- huffman trees are full, so each node will have
     // either 0 or 2 children. Therefore we need to check only one child to
@@ -168,8 +168,8 @@ static int process_chunk_(long offset, FILE *in, bitstring b, huff_dict_cb act, 
     // TODO check result
     if (arr[1] != 0) {
         // internal node
-        bitstring l = { .bits = (b.bits << 1) | 0, .len = b.len + 1 },
-                  r = { .bits = (b.bits << 1) | 1, .len = b.len + 1 };
+        bitstring l = { .bits = b.bits | (0ull << b.len), .len = b.len + 1 },
+                  r = { .bits = b.bits | (1ull << b.len), .len = b.len + 1 };
 
         act(arr[0], b, HUFF_PRE_ORDER, data);
         process_chunk_(offset + arr[0], in, l, act, data);
