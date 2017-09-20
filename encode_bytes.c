@@ -22,6 +22,7 @@ struct emit_state {
     unsigned char count;
 };
 
+// Bits are emitted LSB to MSB -- i.e. earlier bits are lower in a byte
 static int emit_bitstring(struct emit_state *state, bitstring b, FILE *out)
 {
     if (b.len == 0) {
