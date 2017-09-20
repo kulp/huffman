@@ -1,5 +1,6 @@
 #include "huffman.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -71,7 +72,25 @@ int main(int argc, char *argv[])
     };
 
     huff_load_dict(dict, build_dict, &state);
-    // TODO
+
+    struct dict_node *node = root;
+    bitstring next;
+    // read only one char at a time to avoid endian issues
+    while (!feof(data) && fread(&next.bits, 1, 1, data) == 1) {
+        next.len = CHAR_BIT;
+        // consume byte until it is gone
+        while (next.len > 0) {
+            if (node->children[0] == NULL) { // leaf node
+                fputc(node->val, out); // emit code byte
+                node = root; // reset to root for next bits
+            } else {
+                node = node->children[next.bits & 1];
+                next.bits >>= 1;
+                next.len--; // consumed a bit
+            }
+        }
+    }
+
     return EXIT_SUCCESS;
 }
 
