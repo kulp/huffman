@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
     };
 
     huff_load_dict(dict, build_dict, &state);
+    fclose(dict);
 
     struct dict_node *node = root;
     bitstring next;
@@ -116,6 +117,8 @@ int main(int argc, char *argv[])
     }
 
     free_dict_node(root, 1);
+
+    fclose(data);
 
     return EXIT_SUCCESS;
 }
