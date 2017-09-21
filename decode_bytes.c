@@ -50,6 +50,20 @@ static int build_dict(char byte, bitstring bits, enum huff_walker_order order, v
     return 0;
 }
 
+static void free_dict_node(struct dict_node *node, int recurse)
+{
+    if (!node) {
+        return;
+    }
+
+    if (recurse) {
+        free_dict_node(node->children[0], recurse);
+        free_dict_node(node->children[1], recurse);
+    }
+
+    free(node);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
@@ -100,6 +114,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    free_dict_node(root, 1);
 
     return EXIT_SUCCESS;
 }
