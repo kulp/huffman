@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     FILE *dict = fopen(argv[1], "rb");
     FILE *data = fopen(argv[2], "rb");
     if (!dict || !data) {
-        fprintf(stderr, "Unable to open dictionary or input data\n");
+        perror("Unable to open dictionary or input data");
         return EXIT_FAILURE;
     }
 
