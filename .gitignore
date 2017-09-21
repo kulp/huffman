@@ -1,0 +1,5 @@
+*.o
+encode_bytes
+decode_bytes
+unmake_dict
+test_huffman
