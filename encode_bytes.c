@@ -1,8 +1,8 @@
 #include "huffman.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 
 #define CHAR_MASK ((1ul << CHAR_BIT) - 1)
 
@@ -59,13 +59,25 @@ int main(int argc, char *argv[])
     FILE *dict = fopen(argv[1], "rb");
     FILE *data = fopen(argv[2], "rb");
     if (!dict || !data) {
-        fprintf(stderr, "Unable to open dictionary or input data\n");
+        perror("Unable to open dictionary or input data");
         return EXIT_FAILURE;
     }
 
     bitstring table[1 << CHAR_BIT]; // look up bitstring using byte as index
 
     int rc = huff_load_dict(dict, collect_nodes, table);
+
+    if (fseek(data, 0, SEEK_END)) {
+        perror("Failed to seek input stream");
+        return EXIT_FAILURE;
+    }
+
+    long size = ftell(data);
+    fseek(data, 0, SEEK_SET);
+    if (huff_emit_length(out, size)) {
+        perror("Failed to emit length");
+        return EXIT_FAILURE;
+    }
 
     struct emit_state state = { .count = 0 };
     while (!feof(data) && !ferror(data)) {

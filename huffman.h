@@ -34,5 +34,7 @@ int  huff_walk(struct huff_state *s, huff_walker *w, void *userdata);
 void huff_destroy(struct huff_state *s);
 
 int  huff_load_dict(FILE *in, huff_dict_cb act, void *data);
+int  huff_emit_length(FILE *stream, unsigned long long size);
+int  huff_read_length(FILE *stream, unsigned long long *size);
 
 #endif

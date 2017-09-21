@@ -1,4 +1,6 @@
 #include "huffman.h"
+
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -189,5 +191,42 @@ int huff_load_dict(FILE *in, huff_dict_cb act, void *data)
     bitstring bits = { .len = 0 };
 
     return process_chunk_(ftell(in), in, bits, act, data);
+}
+
+const unsigned long long TOP_BIT = 1ull << (CHAR_BIT - 1);
+
+// Length is stored as a variable-length integer. The most significant bit of
+// each byte is 1 if there are more bytes to come. Each successive byte
+// contains (CHAR_BIT - 1) bits of the original size, starting with the least
+// significant.
+int huff_emit_length(FILE *stream, unsigned long long size)
+{
+    const int byte = size & (TOP_BIT - 1);
+    const int more = size != (unsigned long long)byte;
+    if (more) {
+        int rc = fputc(byte | TOP_BIT, stream);
+        if (rc != EOF) {
+            huff_emit_length(stream, size >> (CHAR_BIT - 1));
+        }
+        return rc == EOF;
+    } else {
+        return fputc(byte, stream) == EOF;
+    }
+}
+
+int huff_read_length(FILE *stream, unsigned long long *size)
+{
+    unsigned index = 0;
+    unsigned char byte;
+    const unsigned char mask = TOP_BIT - 1;
+    while (!feof(stream) && fread(&byte, 1, 1, stream) == 1) {
+        *size |= (byte & mask) << index;
+        index += CHAR_BIT - 1;
+        if (!(byte & TOP_BIT)) {
+            break;
+        }
+    }
+
+    return 0;
 }
 
