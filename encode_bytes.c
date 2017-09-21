@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
     bitstring table[1 << CHAR_BIT]; // look up bitstring using byte as index
 
     int rc = huff_load_dict(dict, collect_nodes, table);
+    fclose(dict);
 
     if (fseek(data, 0, SEEK_END)) {
         perror("Failed to seek input stream");
@@ -106,6 +107,8 @@ int main(int argc, char *argv[])
     // flush leftover bits
     bitstring blank = { .len = 0 };
     emit_bitstring(&state, blank, out);
+
+    fclose(data);
 
     return EXIT_SUCCESS;
 }
