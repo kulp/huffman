@@ -22,13 +22,16 @@ struct emit_state {
     unsigned char count;
 };
 
-// Bits are emitted LSB to MSB -- i.e. earlier bits are lower in a byte
+// Bits are emitted LSB to MSB -- i.e. earlier bits are lower in a byte.
+// Returns number of bits emitted.
 static int emit_bitstring(struct emit_state *state, bitstring b, FILE *out)
 {
-    if (b.len == 0) {
-        // We got an invalid bitstring -- we don't know how to encode
-        return 1;
-    }
+    // Receiving a bitstring of 0 length is acceptable at any time, although
+    // only useful at the end of encoding. It means "encode what you have
+    // remaining in `state` even if it is not a full byte".
+
+    int count = 0;
+    int flush = b.len == 0;
 
     if (state->count > 0) {
         // TODO this code is convenient but assumes bitstring does not overflow
@@ -38,14 +41,22 @@ static int emit_bitstring(struct emit_state *state, bitstring b, FILE *out)
 
     while (b.len >= CHAR_BIT) {
         fputc(b.bits & CHAR_MASK, out);
-        b.len   -= CHAR_BIT;
+        count   += CHAR_BIT;
         b.bits >>= CHAR_BIT;
+        b.len   -= CHAR_BIT;
+    }
+
+    if (flush) { // if so, flush state
+        fputc(b.bits & CHAR_MASK, out);
+        count   += b.len;
+        b.bits >>= b.len;
+        b.len    = 0;
     }
 
     state->count = b.len;
     state->bits  = b.bits;
 
-    return 0;
+    return count;
 }
 
 int main(int argc, char *argv[])
@@ -83,12 +94,18 @@ int main(int argc, char *argv[])
     while (!feof(data) && !ferror(data)) {
         int ch = fgetc(data);
         if (ch != EOF) {
-            if (emit_bitstring(&state, table[(unsigned char)ch], out)) {
+            bitstring b = table[(unsigned char)ch];
+            if (b.len == 0) {
                 fprintf(stderr, "Read byte %#hhx not in dictionary\n", (unsigned char)ch);
                 return EXIT_FAILURE;
             }
+            emit_bitstring(&state, b, out);
         }
     }
+
+    // flush leftover bits
+    bitstring blank = { .len = 0 };
+    emit_bitstring(&state, blank, out);
 
     return EXIT_SUCCESS;
 }
