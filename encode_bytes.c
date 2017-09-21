@@ -59,6 +59,40 @@ static int emit_bitstring(struct emit_state *state, bitstring b, FILE *out)
     return count;
 }
 
+static int encode_stream(bitstring table[1 << CHAR_BIT], FILE *in, FILE *out)
+{
+    if (fseek(in, 0, SEEK_END)) {
+        perror("Failed to seek input stream");
+        return 1;
+    }
+
+    long size = ftell(in);
+    fseek(in, 0, SEEK_SET);
+    if (huff_emit_length(out, size)) {
+        perror("Failed to emit length");
+        return 1;
+    }
+
+    struct emit_state state = { .count = 0 };
+    while (!feof(in) && !ferror(in)) {
+        int ch = fgetc(in);
+        if (ch != EOF) {
+            bitstring b = table[(unsigned char)ch];
+            if (b.len == 0) {
+                fprintf(stderr, "Read byte %#hhx not in dictionary\n", (unsigned char)ch);
+                return 1;
+            }
+            emit_bitstring(&state, b, out);
+        }
+    }
+
+    // flush leftover bits
+    bitstring blank = { .len = 0 };
+    emit_bitstring(&state, blank, out);
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
@@ -79,35 +113,7 @@ int main(int argc, char *argv[])
     int rc = huff_load_dict(dict, collect_nodes, table);
     fclose(dict);
 
-    if (fseek(data, 0, SEEK_END)) {
-        perror("Failed to seek input stream");
-        return EXIT_FAILURE;
-    }
-
-    long size = ftell(data);
-    fseek(data, 0, SEEK_SET);
-    if (huff_emit_length(out, size)) {
-        perror("Failed to emit length");
-        return EXIT_FAILURE;
-    }
-
-    struct emit_state state = { .count = 0 };
-    while (!feof(data) && !ferror(data)) {
-        int ch = fgetc(data);
-        if (ch != EOF) {
-            bitstring b = table[(unsigned char)ch];
-            if (b.len == 0) {
-                fprintf(stderr, "Read byte %#hhx not in dictionary\n", (unsigned char)ch);
-                return EXIT_FAILURE;
-            }
-            emit_bitstring(&state, b, out);
-        }
-    }
-
-    // flush leftover bits
-    bitstring blank = { .len = 0 };
-    emit_bitstring(&state, blank, out);
-
+    encode_stream(table, data, out);
     fclose(data);
 
     return EXIT_SUCCESS;

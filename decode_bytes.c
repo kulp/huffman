@@ -64,6 +64,39 @@ static void free_dict_node(struct dict_node *node, int recurse)
     free(node);
 }
 
+static int decode_stream(struct dict_node *dict, FILE *in, FILE *out)
+{
+    struct dict_node *node = dict;
+    bitstring next;
+    unsigned long long chars = 0; // number of characters output
+    unsigned long long max = 0;
+    if (huff_read_length(in, &max)) {
+        perror("Failed to read length");
+        return 1;
+    }
+
+    // read only one char at a time to avoid endian issues
+    while (chars < max && !feof(in) && fread(&next.bits, 1, 1, in) == 1) {
+        // Pretend we always get a full char's worth of bits. We will stop
+        // before end-of-stream because we count characters emitted.
+        next.len = CHAR_BIT;
+        // consume byte until it is gone
+        while (next.len > 0) {
+            if (node->children[0] == NULL) { // leaf node
+                fputc(node->val, out); // emit code byte
+                node = dict; // reset to root for next bits
+                chars++;
+            } else {
+                node = node->children[next.bits & 1];
+                next.bits >>= 1;
+                next.len--; // consumed a bit
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
@@ -88,38 +121,11 @@ int main(int argc, char *argv[])
     huff_load_dict(dict, build_dict, &state);
     fclose(dict);
 
-    struct dict_node *node = root;
-    bitstring next;
-    unsigned long long chars = 0; // number of characters output
-    unsigned long long max = 0;
-    if (huff_read_length(data, &max)) {
-        perror("Failed to read length");
-        return EXIT_FAILURE;
-    }
-
-    // read only one char at a time to avoid endian issues
-    while (chars < max && !feof(data) && fread(&next.bits, 1, 1, data) == 1) {
-        // Pretend we always get a full char's worth of bits. We will stop
-        // before end-of-stream because we count characters emitted.
-        next.len = CHAR_BIT;
-        // consume byte until it is gone
-        while (next.len > 0) {
-            if (node->children[0] == NULL) { // leaf node
-                fputc(node->val, out); // emit code byte
-                node = root; // reset to root for next bits
-                chars++;
-            } else {
-                node = node->children[next.bits & 1];
-                next.bits >>= 1;
-                next.len--; // consumed a bit
-            }
-        }
-    }
+    int rc = decode_stream(root, data, out);
 
     free_dict_node(root, 1);
-
     fclose(data);
 
-    return EXIT_SUCCESS;
+    return rc;
 }
 
