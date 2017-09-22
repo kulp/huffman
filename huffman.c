@@ -8,113 +8,72 @@
 struct huff_node {
     struct huff_value_node v;
     double weight;
-    struct huff_node *left, *right;
+    struct huff_node *left, *right; // full binary tree
+    struct huff_node *next; // singly linked list
 };
 
 struct huff_state {
-    // size is the allocated size of queue ; used is the number of slots used
-    // in queue. When used grows to be equal to size, realloc().
-    size_t size, used;
-    // All nodes are stored consecutively in queue, but only the ones between
-    // head and tail are considered "in the queue" ; that is, when head ==
-    // tail, the queue is empty, and when (tail - head == 1), there is one
-    // node in the queue (end condition). The queue is realloc'ed as needed
-    // when new nodes are added, whether leaf nodes or internal.
-    struct huff_node *queue, *head, *tail;
+    struct huff_node *head, *tail;
     unsigned built:1;
 };
+
+static struct huff_node *new_node()
+{
+    return calloc(1, sizeof *new_node());
+}
 
 int huff_init(struct huff_state **_s)
 {
     struct huff_state *s = *_s = malloc(sizeof *s);
     s->built = 0;
-    s->size = 64;
-    s->used = 0;
-    s->queue = calloc(s->size, sizeof *s->queue);
-    s->head = s->tail = s->queue;
+    s->head = s->tail = new_node(); // one-node list = empty
 
     return 0;
 }
 
-static int dbl_cmp(const void *_a, const void *_b)
+static void insert_node(struct huff_node **start, struct huff_node *end, struct huff_node *node)
 {
-    const struct huff_node *a = _a,
-                           *b = _b;
-    return a->weight - b->weight;
-}
-
-static void ensure_order(struct huff_state *s)
-{
-    // It would be better to insert in place instead of resorting an
-    // almost-sorted list every time, especially since this is a worst-case
-    // scenario for quicksort.
-    qsort(s->head, s->tail - s->head, sizeof *s->queue, dbl_cmp);
-}
-
-// ensures there is space for at least one more node
-static int ensure_space(struct huff_state *s)
-{
-    if (s->used < s->size)
-        return 0;
-
-    ptrdiff_t h = s->head - s->queue,
-              t = s->tail - s->queue;
-
-    // Assume two's-complement integers and round up to a nice round figure
-    s->size = -(-s->used & ~0xf) * 2;
-    struct huff_node *re = calloc(s->size, sizeof *s->queue);
-    memcpy(re, s->queue, s->used * sizeof *s->queue);
-
-    // Update pointers inside realloced memory. They all pointed inside of
-    // s->queue's allocated memory, so we can use their old offsets to
-    // point into their new location.
-    for (struct huff_node *n = re; n != &re[t]; n++) {
-        n->left  = n->left  ? &re[n->left  - s->queue] : NULL;
-        n->right = n->right ? &re[n->right - s->queue] : NULL;
+    while (*start != end && node->weight >= (*start)->weight) {
+        start = &(*start)->next;
     }
 
-    free(s->queue);
-    s->queue = re;
-    s->head = &s->queue[h];
-    s->tail = &s->queue[t];
-
-    return !s->queue;
+    node->next = *start;
+    *start = node;
 }
 
 int huff_add(struct huff_state *s, valtype val, double weight)
 {
-    if (s->built || ensure_space(s))
+    if (s->built)
         return -1;
 
-    s->used++;
-    struct huff_node *q = s->tail++;
+    struct huff_node *q = new_node();
     q->left       = NULL;
     q->right      = NULL;
     q->v.val      = val;
     q->weight     = weight;
     q->v.internal = 0;
 
-    ensure_order(s);
+    insert_node(&s->head, s->tail, q);
 
     return 0;
 }
 
 int huff_build(struct huff_state *s)
 {
-    while ((ensure_order(s), s->tail - s->head > 1)) {
-        if (ensure_space(s))
-            return -1;
+    while (s->head->next != s->tail) { // until we have one node
+        struct huff_node *a = s->head,
+                         *b = a->next;
 
-        struct huff_node *a = s->head++,
-                         *b = s->head++;
+        // drop two nodes from front of list
+        s->head = b->next;
 
-        // TODO coalesce nodes to the beginning of queue (reuse space)
-        s->used++;
-        struct huff_node *c = s->tail++;
+        struct huff_node *c = new_node();
         c->left       = a;
         c->right      = b;
         c->weight     = a->weight + b->weight;
         c->v.internal = 1;
+
+        insert_node(&s->head, s->tail, c);
     }
 
     s->built = 1;
@@ -156,9 +115,27 @@ int huff_walk(struct huff_state *s, huff_walker *w, void *userdata)
     return walk(s->head, b, w, userdata);
 }
 
+static void destroy_node(struct huff_node *node, int recurse)
+{
+    if (!node) {
+        return;
+    }
+
+    if (recurse) {
+        destroy_node(node->left, recurse);
+        destroy_node(node->right, recurse);
+    }
+
+    free(node);
+}
+
 void huff_destroy(struct huff_state *s)
 {
-    free(s->queue);
+    for (struct huff_node *next, *node = s->head; node != NULL; node = next) {
+        next = node->next;
+        destroy_node(node, 1);
+    }
+
     free(s);
 }
 
