@@ -13,7 +13,7 @@ struct huff_node {
 };
 
 struct huff_state {
-    struct huff_node *head, *tail;
+    struct huff_node *head;
     unsigned built:1;
 };
 
@@ -26,14 +26,14 @@ int huff_init(struct huff_state **_s)
 {
     struct huff_state *s = *_s = malloc(sizeof *s);
     s->built = 0;
-    s->head = s->tail = new_node(); // one-node list = empty
+    s->head = NULL;
 
     return 0;
 }
 
-static void insert_node(struct huff_node **start, struct huff_node *end, struct huff_node *node)
+static void insert_node(struct huff_node **start, struct huff_node *node)
 {
-    while (*start != end && node->weight >= (*start)->weight) {
+    while (*start != NULL && node->weight >= (*start)->weight) {
         start = &(*start)->next;
     }
 
@@ -53,14 +53,14 @@ int huff_add(struct huff_state *s, valtype val, double weight)
     q->weight     = weight;
     q->v.internal = 0;
 
-    insert_node(&s->head, s->tail, q);
+    insert_node(&s->head, q);
 
     return 0;
 }
 
 int huff_build(struct huff_state *s)
 {
-    while (s->head->next != s->tail) { // until we have one node
+    while (s->head->next != NULL) { // until we have one node
         struct huff_node *a = s->head,
                          *b = a->next;
 
@@ -73,7 +73,7 @@ int huff_build(struct huff_state *s)
         c->weight     = a->weight + b->weight;
         c->v.internal = 1;
 
-        insert_node(&s->head, s->tail, c);
+        insert_node(&s->head, c);
     }
 
     s->built = 1;
